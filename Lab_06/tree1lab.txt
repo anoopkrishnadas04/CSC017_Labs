@@ -1,0 +1,119 @@
+/*                CSC17 Binary Search Tree Lab 1
+
+For the first of two labs on binary search trees, you are to take the "basic"
+implemenation that I wrote in class (complete now with the procedure to
+remove nodes) and modify it in various ways.
+
+1. Implement a new method on all Nodes
+
+      Node<T> makeclone();
+
+   This method should return a clone (copy) of the current node. It must
+   recreate each vertex of the tree recursively.  You need to add the above
+   declaration to the Node interface, then add implementations in both the
+   nil and vertex classes.  In the nil class, just "return this", which is
+   not technically a copy of nil, but it doesn't matter since one nil is
+   indistinguishable from another.  However, in the vertex class this 
+   producedure must contain recursive calls to reconstruct all vertexes.
+
+2. The basic implementation I wrote in class is for a "set", and not a
+   "map".  Recall the difference between hashmaps and hashsets.  Maps
+   are more general then sets. Once we have a map from keys to values,
+   we can easily implement a set with a map from set-elements as keys
+   to Booleans as values.  Your assignment is to change my
+   implementation of "tree sets" to "tree maps".  You can modify the
+   code I wrote,
+
+        BUT YOU MAY NOT USE ANY OTHER EXISTING DATA STRUCTURE
+ 
+   A binary search tree can also implement a map as long as the keys are
+   are "Comparable.".  Each vertex of the tree will contain a key and a value.
+   The keys are unique in the tree (but values can be anything non-null).
+
+   The new "Node" interface for your implementation is the following
+*/
+
+import java.util.function.BiConsumer;
+import java.util.Optional;
+
+// KT = type of keys, VT = type of values
+interface Node<KT extends Comparable<KT>, VT> {
+    boolean isempty();
+    int size();
+    int depth();
+    default int height() { return depth(); }  // change this
+    Node<KT,VT> set(KT key, VT val); //add or change: t = t.set(key,val)
+    //boolean search(T x); // true if x is in the tree
+    Optional<VT> get(KT key); // replaces search
+    Node<KT,VT> remove(KT key);  // still call as t = t.remove(key);
+    void inorder(BiConsumer<KT,VT> c);
+    void preorder(BiConsumer<KT,VT> c);
+    void postorder(BiConsumer<KT,VT> c);
+    Node<KT,VT> makeclone();
+}//Node interface for maps
+
+/*  
+Both the nil and vertex classes must be modified to implement this interface:
+
+  class nil<KT extends Comparable<KT>,VT> implements Node<KT,VT> {...}
+  class vertex<KT extends Comparable<KT>,VT> implements Node<KT,VT> {...}
+
+A "BiConsumer<KT,VT>" is an interface with a function 
+    void accept(KT key, VT val)
+which you can instantiate with a lambda expression such as
+   (k,v) -> System.out.println("key:"+k+", value:"+v)
+*/
+
+/* 3. 
+The size() and depth() functions as implemented are inefficient
+because they're O(n): they require the entire tree to be traversed.
+To implement a O(1) depth function (at the cost of more memory), we
+can require each vertex to contain an instance variable "height".  We
+also need a function "setheight" that looks at the height of its left
+and right subtrees to set this variable.  setheight should be called whenever
+a vertex is created, or when the depth of a subtree might change because
+of insertion/deletion.
+
+ inside class vertex ..
+
+   int height;
+   public int height() { return height; }
+   int setheight() { ... }
+
+You need to write the setheight function as well as call it from all
+places appropriate (set, remove, etc).  Notice that in the new Node
+interface there's a function 'height()' inaddition to 'depth()', which
+you should keep.  The default implementation of height() is the same as
+depth(), which is fine for nil, but you have to override it for vertex.
+*/
+
+/* 4. (optional for now)
+We can implement a O(1) size() function using a "wrapper" class, similar to
+one we used for the linked list.  The nil and vertex classes can then become
+*inner* classes of the wrapper class
+
+class BstMap<KT extends Comparable<KT>, VT> {
+
+    class nil implements Node<KT,VT> { 
+      public Node<KT,VT> set(KT key, VT val) {
+        if (key==null || val==null) {
+           System.err.println("null args to Node.set ignored");
+           return this;
+        }
+        size++;
+        return new vertex(key,val,this,this);
+      }// set for nil
+      ... (rest of nil class)
+    }
+    class vertex implements Node<KT,VT> { .. }
+
+    Node<KT,VT> root = new nil(); // this should be the only nil in tree
+    int size=0;
+    public int size() { return size; }
+    public int height() { return root.height(); }
+    public void put(KT key, VT val) { root = root.set(key,val); }
+    ...
+}
+
+Complete this class.
+*/

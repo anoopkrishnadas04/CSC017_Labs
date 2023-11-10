@@ -1,0 +1,256 @@
+import java.util.Optional;
+
+/*      CSC 17 Lab: Implementing Variations on Hash Maps
+
+======================================================
+
+For this assignment, you're going to apply existing implementations of
+hashmaps to implement new kinds of data hashing-related data
+structures. You can use either the AssocArray class I defined, or
+java.util.HashMap.  You must define new data types that contains these
+maps underneath.  I will give you a simple example:
+
+Suppose I wanted to construct an "association set", also called
+"hashset".  Unlike a hashmap, a hashset just consists of a set of
+keys. It is a "set" because the keys are in no particular order and
+each key is unique.  We can implement a hashset using a hashmap by
+mapping keys to booleans: a key maps to true if it exists in the set,
+and false (or null) if it doesn't exist in the set.  It is important
+that we ENCAPSULATE this new data structure so that users don't have
+to worry about how it works underneath.  That is, users should only
+see the interface:
+*/
+interface FiniteSet<T> {  // finite set of values of type T
+    int size();  // cardinality of set
+    boolean insert(T x); //add x to set returns false if x already in the set
+    boolean contains(T x);  // determines if x is in the set
+    boolean remove(T x); //removes x from set, returns false if nothing removed
+}
+/*
+   This interface can be called an "Abstract Data Type" or ADT.  We can
+choose to implement it anyway we like.
+*/
+class AssocSet<T> implements FiniteSet<T> 
+{ 
+    private AssocArray<T,Boolean> Boolmap; // internal representation
+
+    public AssocSet() {
+	Boolmap = new AssocArray<T,Boolean>();
+    }//constructor
+
+    ///// interface methods
+
+    public int size() { return Boolmap.size(); }
+
+    public boolean insert(T x) {
+	return Boolmap.add(x,true);
+    }//insert
+
+    public boolean contains(T x) {
+	return Boolmap.get(x).isPresent();
+    }
+
+    public boolean remove(T x) {
+	return Boolmap.remove(x);
+    }
+}//AssocSet
+/*
+   The class adopts an AssocMap to serve as a AssocSet.  I could've also
+used a java.util.HashMap underneath: in that case, some of the methods would
+have to be adopted differently, for example,
+
+   public boolean remove(T x) {
+       if (x==null) return false; // don't allow null
+       else return Boolmap.remove(x) != null;
+   }
+
+This version of the function assumes that Boolmap is a HashMap<T,Boolean>.
+The .remove function for Java's HashMap accepts null, and returns null
+if there was no previous value associated with it.  We should try our best
+to avoid null and its problems.  
+
+Java has a java.util.HashSet class, but it doesn't have the following...
+*/
+
+/*          ==              PART I              ==
+
+A *bijective map* or "Bimap" is a hash map that associates a pair of
+values, but one in which either value can be used as the "key" to
+lookup the other.  For example, suppose we want to create an
+association between letter grades and their numerical values:
+
+Bimap<String,Double> Gradepoint = new Bimap<String,Double>(16);
+Gradepoint.set("A-", 3.7);  // map between grades and numerical values
+Gradepoint.set("B+", 3.3);
+
+Optional<Double> gp = Gradepoint.get("A-"); // returns Optional with 3.7
+Optional<String> gr = Gradepoint.reverse_get(3.7);// Optional with "A-"
+Optional<String> gr = Gradepoint.reverse_get(3.6);// empty Optional
+
+This structure assumes that each value uniquely identifies the pair.
+That is, "A-" cannot be mapped to a value other than 3.7, AND vice
+versa (but the association can change).  In other words, there needs to
+be a one-to-one correspondence between keys and values.  If multiple
+keys can map to the same value, you should not be using this data
+structure. For example, if we are mapping student names to their GPAs then
+it is not a bimap because two students can have the same GPA.
+
+A bimap must be based on a "bijective" function between keys and values.
+
+A bimap can be implemented with A PAIR OF ONE-DIRECTIONAL maps. 
+In the case of the Gradepoint example, you need a map from Strings to
+Doubles AND one from Doubles to Strings.  You also need to make sure
+that the two maps are consistent.  If you change "A-" to map to 3.8
+for example, in the other map you must also delete the other map's
+entry for 3.7 and insert a key-value pair mapping 3.8 to "A-".  These two
+maps should be used internally in a new datatype class that you will
+define.
+
+To implement this data structure correctly, which you might actually use
+someday, you must always observe the following:
+  
+  THERE CANNOT BE CONFLICTING KEY-VALUE PAIRS IN ANY HASHMAP.
+
+For a bimap, this means a key cannot be found in two places and a value
+also must not be found in two places (see the example in the main below).
+Your implementation MUST also preserve time_complexity characteristics
+of the basic operations (each must take average-case O(1) time).
+
+Your class must implement the following interface:
+*/
+public interface Twowaymap<TA,TB> //bijective map between types TA and TB
+{
+   void set(TA x, TB y);  // insert or change pair, x,y must be non-null.
+
+   Optional<TB> get(TA x); // gets corresponding TB value given TA value x
+
+   Optional<TA> reverse_get(TB x); // get TA value given TB value x
+
+   Optional<TB> removeKey(TA x); // remove pair associated with TA x as key,
+                                 // returns TB value if present
+   Optional<TA> removeVal(TB y); // remove pair associated with TB y as key,
+                                 // returns TA value if present
+   int size();   // number of pairs in map. (equal to number of keys)
+}
+/*
+None of these function should ever return null.  You will get a grade of 
+null if any function returned null.  You will be known as "the null student"
+forever.  You also should check if any argument passed to these functions 
+is null.
+
+You can choose to implement this interface anyway you want.  Place it
+in a new file.
+
+Here's a test function that works with my program, and you can use it
+to test yours.  This main assumes that your bimap class is called 'Bimap':
+
+    public static void main(String[] args)
+    {
+	// bijective map between letter grades and grade point values
+	Bimap<String,Double> GP = new Bimap<String,Double>();
+	String[] Grades = {"A","A-","B+","B","B-","C+","C","C-","D+","D","F"};
+	Double[] Points = {4.0,3.7,3.3,3.0,2.7,2.3,2.0,1.7,1.3,1.0,0.0};
+	for(int i=0;i<Grades.length;i++) GP.set(Grades[i],Points[i]);
+	for(String g:Grades) System.out.println(GP.get(g));
+	for(Double p:Points) System.out.println(GP.reverse_get(p));	
+
+	GP.set("A-",3.75); // CHANGE value of A- from 3.7 to 3.75
+	GP.set("B+",3.25); // change another key/value
+	GP.removeVal(1.3); // remove the D+ grade
+
+	System.out.println(GP.get("A-")); // should print Optional[3.75]
+	System.out.println(GP.reverse_get(3.75)); // should print A-
+	System.out.println(GP.get("D+")); // should print empty optional
+	System.out.println(GP.reverse_get(1.3)); // empty optional
+
+	/// THIS ONE IS THE MOST IMPORTANT, EASY TO GET WRONG: ****
+
+	System.out.println("3.7: "+GP.reverse_get(3.7)); 
+
+        // This MUST PRINT AN EMPTY OPTIONAL
+	// because you already changed A- to correspond to 3.75, there
+	// should be no value associated with 3.7.
+
+        // Also be sure the check this one:  ****
+	//GP.set("A+",4.0); // this will also erase value for "A". why?
+	System.out.println(GP.size());  // should print 10
+
+        var p = GP.get("G"); // this better not throw a NullPointerException
+        p = GP.get(null);    // neither should this
+
+	// Pay special attention to cases marked with **** above
+    }//test
+    
+You an place this main in your public calss
+public class Bimap<TA,TB> 
+{ ...
+}
+*/
+
+
+
+/*
+=========================
+Part 2
+
+Write a version of a bi-directional hash map that relaxes the bijective
+condition and allows multiple keys to be associated with the same value.
+This means that reverse_get must be able to return a *set* that can contain
+multiple values.  You can, for example, use a java.util.HashSet data structure
+to represent a set of values.  Study how this data structure can be used and
+pay attention to the contruction and the 'add' and 'contains' methods.  A
+HashSet also allows the for-each loop as it implements the Iterable interface
+(see main below).
+
+As in the bimap of part 1, the trickiest part of this program will be making
+sure that the information contained in the two maps are consistent.
+
+To implement this version of a 2-way hashmap, you should again use two
+internal hashmaps, one in each direction.  However, the reverse map
+should map each value to a HashSet of values.  You can design your own
+interface this time, but the following main should work as long as your
+class is called 'Hash2Way'.
+
+public static void main(String[] av)
+    {
+       // create a Hash2Way hashmap to map student names to GPAs
+        Hash2Way<String,Double> GPA = new Hash2Way<String,Double>();
+        GPA.put("Mary",3.7);
+        GPA.put("Larz",4.0);
+        GPA.put("Narx",4.0);
+        GPA.put("Lenz",4.0);
+        GPA.put("Bryant",3.5);
+        GPA.put("Cryans",3.5);
+
+	GPA.get("Mary")
+	   .ifPresent(g -> System.out.println("Mary's GPA: "+g));
+        System.out.println("Students with 4.0 GPAs:");
+	GPA.reverse_get(4.0)
+           .ifPresent(set -> { for(String s:set) System.out.println(s); });
+
+        GPA.put("Narx", 3.7); // Narx had a hard semester ...
+        System.out.println("\nNarx's new GPA: "+GPA.get("Narx"));
+        System.out.println("Students with 4.0 GPAs:");
+	GPA.reverse_get(4.0)
+           .ifPresent(set -> { for(String s:set) System.out.println(s); });
+
+        System.out.println("Students with 3.7 GPAs:");
+	GPA.reverse_get(3.7)
+           .ifPresent(set -> { for(String s:set) System.out.println(s); });
+    }//main
+
+Expected output:
+
+Mary's GPA: 3.7
+Students with 4.0 gpas:
+Larz
+Narx
+Lenz  (not necessarily in this order)
+Narx's new GPA: 3.7
+Students with 4.0 gpas:
+Larz
+Lenz
+Students with 3.7 gpas:
+Mary
+Narx
+*/

@@ -1,0 +1,229 @@
+/*            CSC 17 Lab 3: Sortable Circular Queue
+
+(This assignment description also contains the interface you must implement.
+ You should download all relevant files into a separate folder.)
+
+   A circular queue retains all the benefits of an array, including O(1)
+access of any value if its index is known.  One algorithm that is possible
+on arrays is *binary search*, but which also requires that the Queue is
+**sorted**.  Sorting requires a way to compare objects of generic type T.
+Java does not allow the overloading of operators such as <, <=, etc, but 
+provides the Comparable interface:
+
+public interface Comparable<T>
+{
+   int compareTo(T x);
+}
+
+A class that implements this interface must implement the compareTo function
+that also observes the following protocol:  if int c = a.compareTo(b), then: 
+
+      c must be 0 if a is considered to be "equal" to b
+      c must be negative if a is considered "less than" b
+      c must be positive if a is considered "greater than" b.
+
+Furthermore, it's recommended that Math.abs(a.compareTo(b)) indicates the
+degree of difference between a and b.  Also, when defining your own notion
+of "equality" and "ordering" you must observe the mathematical properties of
+equivalence and partial/total ordering relations (especially transitivity).
+
+=============================================================================
+
+Your assignment is to implement a subclass of CircQueue (circular Queue)
+that implements the following interface (the only code content of this file):
+*/
+import java.util.Optional;
+public interface CmpQueue<T> extends Queue<T>
+{
+    boolean is_sorted(); // determines if queue is sorted in increasing order
+    int search(T x); // first index of value: x.compareTo(value)==0, or -1
+    Optional<T> setnth(int n, T x); //change value at virtual index n to x
+    int insert_sorted(T x); // insert new x into a sorted queue
+    default void sort() {} // (OPTIONAL) sorts queue if it's not sorted
+}
+// See detailed requirements for these functions below (and skeleton at end)
+/*
+When an interface extends another interface, it just means that the
+new interface contains all the declarations found in both interfaces: 
+CmpQueue also contains int size(), T pop(), etc..
+
+You should create a class with the following rather long spec:
+
+public class CmpCQ<T extends Comparable<T>> extends CircQueue<T> implements CmpQueue<T>
+
+(you can change CmpCQ to a better name)
+
+The "<T extends Comparable<T>>" part means that the type used to instantiate
+T must implement Comparable.  For example, you can say CmpCQ<String>, but
+not CmpCQ<Otherclass> if Otherclass does not implement Comparable.
+The reason "extends" is used here instead of "implements" is that you
+should think of T as an interface when writing your code, and not as a class
+(you can't say new T(), for example).
+
+The "extends CircQueue<T>" part of the spec means that your class inherits
+all the definitions of my CircQueue class, and therefore already implements
+the Queue<T> part of the interface CmpQueue<T>.  
+
+Finally "implements CmpQueue<T>" means you need to implement the new methods
+listed in the interface CmpQueue.
+
+The idea is to implement a circular queue that *may* be sorted.  Implementing
+the interface functions may mean that you will need to @Override certain
+other methods.
+
+################# REVIEW ###################
+
+Given a circular array A with first value (0th value) at 'front' with 'size'
+values, the ith value, where 0<= i <= size-1, is at A[(front+i)%A.length]
+
+############################################
+
+1. public boolean is_sorted():
+
+  This function should return true if the list is sorted (and false otherwise).
+  You could write an O(n) loop to check if the values are sorted,
+  but the objective of this assignment is to maximize efficiency (and still
+  be correct): it would be faster to maintain a boolean flag in your class:
+  protected boolean sorted; which initially is set to true.  But as soon
+  as the second value is inserted into the Q, we must check if the queue
+  is still sorted.  This will require you to also @Override the push and
+  enqueue methods of the superclass CircQueue.  push needs to check if the
+  new value is less than the original front value, and enqueue needs to 
+  check if the new value is greated than last value, and set the sorted
+  boolean flag accordingly.  You don't have to rewrite the entire function
+  because you can still invoke the superclass version of the function while
+  overriding it.  I will do push for you:
+
+    @Override
+    public CmpCQ<T> push(T x) //assuming CmpCQ is name of your class
+    {
+        super.push(x); // invokes inherited version of push
+        if (size>1 && A[front].compareTo(A[(front+1)%A.length])>0)
+            sorted = false;
+	return this;
+    }
+  Once you've modified (@Override) push/enqueue, your is_sorted function can 
+  just return the value of the boolean variable.
+
+  Your new versions of push/enqueue should must still run in amortized
+  constant time.
+
+  *** Your is_sorted() function must run in O(1) time ***
+
+
+2. public Optional<T> setnth(int n, T x) : This function also need a @Override
+   The version inherited from the superclass does not check if the new value
+   keeps the queue sorted.  Think carefully about the logic here that's
+   needed to rewrite this procedure.  This procedure should remain O(1).
+
+3. public int search(T x):
+  
+  This function searches for x in the queue, but more precisely it
+  searchs for the presence of a value y such that x.compareTo(y)==0 (the
+  superclass version used .equals because T is not "extends Comparable<T>".)
+  The function should return the (virtual) index at which y was found.  It
+  should return -1 if no such y was found.
+  
+  YOUR FUNCTION MUST:
+
+  * run in O(log n) time if the queue is sorted
+  * run in O(n) time if the queue is not sorted
+
+This means you need to implement binary search if the queue is sorted. You
+can do a brute force O(n) search if the queue is not sorted.
+I'll write binary search for you in Python, which you must adopt not only
+to Java but to the circular queue setting:
+
+  def binsearch(x,A): # search for x in sorted array A:
+    min,max = 0,len(A)  # range of indices to search, between min and max-1
+    answer = -1   # value to be returned
+    while min<max and answer<0:
+       mid = (min+max)//2   # middle index of partition
+       if x==A[mid]: answer=mid
+       elif x<A[mid]: max = mid
+       else:  min = mid+1
+    # end while
+    return answer
+
+4. int insert_sorted(T x); // insert new x into a sorted queue
+
+   This function should insert x into a sorted queue, keeping it sorted.
+   It should return the virtual index of the inserted value.  If the
+   queue is not sorted, the function should not insert x anywhere, and 
+   return -1;  By "virtual index" I mean 0 if it's the first element,
+   size-1 if it's the last, etc.
+
+   This function should run in O(n) time.
+
+   Hint: first push x to the front of the queue.  Then swap it with
+   the adjacent value to its right if it's not in the right order --
+   like in bubblesort -- and keep swapping until it's in the right position
+   where it's less than or equal the value to its right, if there is one.
+   This is not the best way to insert but it's easier to implement.
+
+   You should try to optimize this function further: if it's already larger
+   than the last value, you should just add it to the end.
+
+
+5. public void sort(): (OPTIONAL)
+
+  This function sorts the Queue (destructively, in place).  This
+problem is optional.  However, if you do implement it you must use an
+algorithm with average-case time complexity of at most O(n log n). You
+need to adopt the algorithm to the circular queue setting.  Of course,
+if the boolean sorted flag is already true, sort() should do nothing.  
+If you choose not to do this option, the interface does contain a default
+dummy implementation. (the only time you will see default implementations
+in an interface is for such dummies: they allow the function to be optionally
+implemented).
+
+---
+To test that your program is working correctly, you also need a function
+(not in the interface) that brute-forces a check of if the queue is sorted
+using a O(n) loop
+
+Be sure to test your implementions with appropriate test code, including the
+what's in the provided skeleton below:
+
+
+//////// PROGRAM SKELETON:
+
+public class CmpCQ<T extends Comparable<T>> extends CircQueue<T> implements CmpQueue<T>
+{
+   protected boolean sorted = true;   
+   public boolean forced_check() // force O(n) check for sorted, FOR DEBUGGING
+    {
+        for(int i=0;i<size-1;i++)
+          if (size>1 && A[(front+i)%A.length].compareTo(A[(front+i+1)%A.length])>0) return false;
+        return true;
+    }
+
+   /// This is needed because of a java peculiarity (the type erasure of T 
+   /// in the subclass is Comparable, not Object):
+   @Override
+   protected T[] makearray(int cap) { return (T[]) new Comparable[cap]; }
+
+   public CmpCQ(int initcapacity) // constructor
+    {
+        super(initcapacity);
+    }
+
+   // ... won't compile until you've implemented the interfaces
+
+   public static void main(String[] av)
+    {
+        int n = 200;
+        var cq = new CmpCQ<Double>(1);
+        // insert in order n random values
+        while (--n>0) cq.insert_sorted(Math.random()*1000);
+        System.out.println("sorted: "+cq.is_sorted());
+        System.out.println("forced check: "+cq.forced_check());    
+	System.out.println("testing search: "+ cq.search(123.456));
+        cq.getnth(10) // get the 10th value from queue
+          .ifPresent(x -> {
+            System.out.println("search2: "+ cq.search(x)); //should find it
+          });
+        cq.printinfo();
+    }
+}//class
+*/

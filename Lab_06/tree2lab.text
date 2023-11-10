@@ -1,0 +1,206 @@
+/*   Binary Search Tree Lab II: AVL Balanced Trees
+
+This lab continues from Tree Lab part I.  The principal goal is to implement
+AVL trees for your tree map implementation.
+
+Remember that this time you're not inheriting any of my code, but only
+using my code as a set of guidelines for yours.  You may not use any
+other existing implementation of AVL trees.  My tree *set* program,
+basicbst.java, has been slightly modified in the following ways:
+
+   1. a height() function that runs in O(1) time.  There's now a
+      setheight() function in the vertex class which sets a height
+      variable an returns the difference between the heights of the 
+      left and right subtrees.  There is also an adjust() function
+      in the vertex class, which is called after each insertion/deletion
+      that can altern the heights of subtrees.  The version of your adjust() 
+      in your program should also apply the appropriate rotation to 
+      balance the tree.
+
+   2. The program has been adopted to a program that graphically displays
+      binary trees.  There are two new interfaces, DisplayNode and 
+      Nonempty, defined in BSTdisplay.java.  The DisplayNode interface
+      is compatible with the existing Node interface, while Nonempty
+      should be implemented by the vertex class.  The Nonempty interface
+      requires you to implement a 
+
+        String get_item();
+
+      method, which returns a string to be displayed for each vertex in the
+      graphical display.  I recommend you just display the key (not the
+      value): return key+"" will convert the key to a string.
+
+Study the basicbst.java program carefully to see how to adopt your program
+similarly.
+
+////////////////////////// Implementing AVL Balancing
+
+
+1. Implement the following basic "rotation" procedures in the *vertex* class
+
+void LL()
+void RR()
+
+A "LL" rotation does the following:
+
+     x                 y
+   /   \             /   \
+  y     r   --->   ll     x
+ / \                     / \
+ll  lr                 lr   r
+
+Here, the x, and y are items (key and value) stored at the nodes, and ll, 
+lr and r represent arbitrary subtrees (left-left, left-right and right).
+Don't confuse the name 'LL' rotation with the lable 'll' for
+left-of-left.  Think of an LL rotation as a clockwise rotation
+centered on the vertex containing x.  Very importantly, we are
+guaranteed to preserve the binary-search tree property after rotation.
+
+The procedure will be called on the vertex with item x.  If the
+vertex has an empty left subtree, then the procedure should do
+nothing.  Otherwise it should modify the tree accordingly.
+
+HINT: Do not delete the vertex containing x, just copy y over.
+      An easy way to write LL() is to create a new vertex for the new
+      right subtree: new vertex<KT,VT>(x,lr,r), but that's not as efficient
+      as trying to reuse the existing vertex for the left subtree: you
+      just need to copy over the values and reconnect the pointers carefully.
+     
+HINT: The left subtree is of static type Node.  You cannot refer to
+      left.item or left.left, left.right without type casting it first:
+
+ vertex<..> lvert = (vertex<..>)left;
+
+now you can refer to lvert.val, lever.left, etc.
+
+There may be similar points in your code where type casting is needed:
+but don't type cast unless you're sure there's not going to be a 
+runtime error.  For example, you should not (and shouldn't need to)
+type cast right to vertex in the LL rotation, because the right
+pointer could point to nil.
+
+**Your procedure should call setheight() at the end because the height
+at 'this' vertex may change afer the rotation (but only on the vertex
+the rotation was applied to - not the entre tree).
+
+//////////////////////////// IMPORTANT: ////////////////////////////
+*****Your procedure must run in O(1): constant time relative to the size of
+the tree.  DO NOT USE LOOPS AND DO NOT MAKE LL() RECURSIVE.  ******
+
+
+A "RR" rotation rotates in the opposite direction (from the second diagram
+to the first).  Implement that too:
+
+     x                 y
+   /   \             /   \
+  l     y   --->    x     rr
+       / \         / \
+      rl  rr      l   rl
+
+
+
+---------------------------------------------------------
+
+2. Rewrite the adjust() procedure to more than just set the height but
+   to balance the tree by applying rotations if necessary.  
+
+   This procedure should set the height at the beginning and at the
+   end.  It should check the height balance (conveniently returned by
+   the existing setheight function), and apply the appropritae
+   rotation to balance the tree at that node.
+
+   YOUR adjust() PROCEDURE MUST ALSO RUN IN O(1) TIME (no loops or
+   recursive calls).
+
+   ****Remember, whenever a tree's left or right sub tree changes
+   destructively, you need to call setheight to properly adjust the
+   height.
+
+   To apply a double (LR/RL) rotation, you will want to call left.RR()
+   and right.LL(); But here again you will need to typecast:
+
+   ((vertex<..>)left).RR();  
+
+   All three procedures, LL(), RR() and adjust(), should be in your
+   vertex subclass.  They should not appear in any interface.
+
+3. Construct the following tree in a "main" and use the BSTdisplay 
+   program to verify that your trees are balanced.  Adopt the code to the
+   specific names of your interfaces and classes and methods: you must
+   create a tree that would be extremely unbalanced in a regular BST instead
+   of an AVL tree.
+
+      Node<Integer,Double> t= new nil<Integer,Double>();
+      // this may also be a wrapper class
+      for(int i=0;i<200;i++) t = t.set(i, i*0.5);
+      BSTdisplay window = new BSTdisplay(1024,768);
+      window.drawtree(t);
+      window.draw_caption_top("Size: "+t.size()+", height "+t.height());
+      window.delay(5000); // 5 second delay 
+      for(int i=0;i<200;i+=2) t = t.remove(i); // remove even numbers
+      window.drawtree(t);
+      window.draw_caption_bottom("Size now "+t.size()+", height "+t.height())
+
+================
+
+                     AVL ALGORITHM REVIEW:
+
+You shouldn't have to implement LR and RL as separate procedures since they're
+compositions of LL and RR. Consider
+
+     5
+    /
+   3 
+    \
+     4
+
+If we do a RR rotation centered on 3, we get:
+
+     5
+    /
+   4
+  /
+ 3
+
+Then if we do a LL rotation centered on 5, we get:
+
+     4
+    / \
+   3   5
+
+This composition of rotations (RR on the left then LL on the top node)
+is called a LR "double rotation".  There is also an RL double rotation
+that is symmetric to LR (LL on the right subtree then RR on the top).  
+An RL rotation is analougous, and is applied when the right subtree is
+at least two levels deeper than the left subtree.
+
+As you can see, these rotations can be used to rebalance a tree after
+it becomes unbalanced as a result of insertion or deletion.  Define
+the "height balance" at a node to be (ld - rd), the depth (height) of
+the left subtree minus the depth of the right subtree.  Thus if the
+right side is deeper, the height balance will be negative and if the
+left side is deeper, it will be positive.  A node is "balanced" if the
+absolute value of its height balance is less than 2.
+
+After inserting/deleting a node, we have to calculate the height
+balance at each node, from the point of insertion/deletion BACK UP TO
+THE ROOT.  If a node is not balanced along this path, we need to apply
+a rotation to rebalance it.  How do we know what type of rotation
+to apply?  The algorithm is as follows: ***
+
+A. Determine if we need a LL/LR or RR/RL rotation:  If the height balance is
+   less than -1 (right side is too deep), we apply RR or RL. If it's greater 
+   than 1 (left side too deep), apply LL or LR
+
+B. To determine if we must apply a LL or LR, we look at the height
+   balance of the left child: if it's positive or zero (deeper on
+   the left again), apply LL; if it's negative, apply LR.  In other
+   words, if lvert.left.height()>=lvert.right.height(), apply LL,
+   other wise apply LR (first apply RR to lvert, then apply LL to
+   "this").
+
+   The determination of RR or RL is analogous, when ld-rd < -1:
+
+    vertex<..> rvert = (vertex<..>)right;  // cast will work because rd>ld
+    if rvert.right.height() >= rvert.left.height(), apply RR
+    else apply RL.

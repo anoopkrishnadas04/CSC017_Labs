@@ -1,0 +1,227 @@
+             CSC 17 Lab: Flexible Priority Heap
+ 
+In this lab you will improve on the BinaryHeap class I wrote by defining
+a subclass with new methods and by overriding some of my methods.
+Alternatively, you can write your class from scratch (instead of writing
+a subclass of my class).  But you must still implement the same interface
+and implement the same underlying algorithm of a Binary Heap.
+
+You should know that Java has a built-in class: java.util.PriorityQueue 
+that implements a Heap.  In fact, our MinMaxHeap interface was
+designed to be consistent with the methods you can call on that
+structure.  However, this data structure may not give us everything we
+need from a priority queue, namely what to do when the priority of an
+object CHANGES.  When this occurs, the position of the object in the
+heap tree likely becomes invalid and must be adjusted.  Right now,
+with both my BinaryHeap and with java.util.PriorityQueue, the only way
+to do it is to find and remove the object first, then re-insert it.
+This takes O(n) time.  But it should be do-able in O(log n) time
+provided we are *aware* of where in the heap the object is.  That is,
+these objects must also store the index of where in a heap it
+currently resides.  This will allow us to avoid the O(n) cost of
+finding an object's position in the heap before swapping it upwards or
+downloards.
+
+======================================================================
+******  Your main objective is to implement a new operation: *********
+======================================================================
+
+Inside the MinMaxHeap interface there's a function specification
+that has a dummy default:
+
+default boolean reposition(T x) { return false; }
+
+My BinaryHeap class does not implement it, so it inherits the default
+and always returns false after doing absolutely nothing.  'false' means
+the operation failed. You must provide the real implementation.
+
+We will require that objects to be stored in a 'FlexMinMaxHeap' implement
+the following interface:
+
+public interface HeapValue<T> extends Comparable<T>
+{
+    int getIndex(); // get the index of this object in the heap
+    void setIndex(int x); // set the index of this object in the heap
+    // int compareTo(T x); // inherited from Comparable
+}
+// note we can optionally maintain a pointer to the heap that contains this object
+// and require functions getHeap and setHeap, but I've decided to leave this out.
+// Thus it must be clear from context what is the heap that these objects belong to.
+
+Here's a sample class that implements HeapValue (which means it must
+also implement compareTo).  
+
+class scholar implements HeapValue<scholar>
+{
+    public final String name;
+    protected float gpa; // with up to 3 digits of precision
+    public scholar(String n, float g) // constructor
+	{
+	    if (n==null || g<0 || g>4.0f) throw new RuntimeException("invalid");
+	    name=n;  gpa=g;
+	}
+    public int compareTo(scholar other)
+    {
+	return (int)(gpa*100+0.5f) - (int) (other.gpa*100+0.5f);
+    }
+
+    public void updateGPA(float g)  // But the "priority" can change!
+    {
+	if (g>=0 && g<=4.0f) gpa = g;
+    }
+
+    protected int hi = -1; // heap index, -1 means index invalid
+    public int getIndex() { return hi; }
+    public void setIndex(int n) { hi=n; }
+  
+}//student scholar  class
+
+'scholar' objects are prioritized by their gpa values, which may change
+over time. Each time updateGPA is called, the position of the scholar
+in the priority queue must also be updated. 
+
+Each time you place a HeapValue object inside the heap array
+(H[i]=object) you must call H[i].setIndex(i) to record the index
+inside the object itself.  The setIndex function, although required to
+be public, should only be called whenever the object is being queued
+or swapped (inside your FlexQueue class).  Changing the index
+externally may destroy the properties of the heap and render it
+useless.  However, your reposition function must first check if the index
+where the object is stored in the array is the same as returned by
+getIndex.  That is, if H[i]==x, then x.getIndex() == i, or:
+
+     H[x.getIndex()] == x  (and yes, you want ==, not just .equals)
+
+Equivalently:
+     H[i].getIndex() == i  if i>=0 && i<size
+
+If this condition is not met, you should ignore any attempt to use
+the index (reposition should do a System.err.println and return false).
+Thus, although setIndex is a public function, your program will provide
+error checks against its corrupted use.
+
+Note that when you insert/delete or reposition a HeapValue object,
+it's not just the heap index of that object that must be set, but all
+objects that it may get swapped with.  Do not assume that you're only
+changing the index of one object.
+
+
+To get you started, your subclass can begin this way 
+
+public class FlexBinaryHeap<T extends HeapValue<? super T>> 
+             extends BinaryHeap<T> implements MinMaxHeap<T>
+{
+    public FlexBinaryHeap(int cap, boolean maxmin) { super(cap,maxmin); }
+    public FlexBinaryHeap() { super(); }
+
+    @Override
+    @SuppressWarnings("unchecked") /* don't use unless you're REALY sure...*/
+    protected T[] makearray(int n) { return (T[]) new HeapValue[n]; }
+
+    //...
+    // implement a real  public boolean reposition(T x) {...}
+}
+
+****** Remember, at no time may you edit my superclass: you may only override.
+With few exceptions, this will be a general requirement in all assignments:
+write all your code separately, never edit my code.  However, you also need
+to *reuse* my code whenever possible.  For this assignment, you may only
+edit the "scholar" class if you wish to make it more interesting.
+
+===============================
+You can devise your own tests, but here's a main that you can use to 
+test your program (change name of your flexqueue class if necessary):
+
+public static void main(String[] av)
+    {
+        scholar a = new scholar("A",1.5f);
+        scholar b = new scholar("B",2.5f);
+        scholar c = new scholar("C", 3.3f);
+        scholar d = new scholar("D",3.0f);
+        scholar e = new scholar("E",3.2f);
+        scholar[] Scholars = {a,b,c,d,e};
+        FlexBinaryHeap<scholar> FPQ = new FlexBinaryHeap<scholar>();
+        for (scholar x:Scholars) FPQ.add(x);
+        FPQ.peek()
+           .ifPresent(s -> System.out.println("top scholar: "+s.name));
+        // priorities change over time...
+        d.updateGPA(3.5f);  FPQ.reposition(d);
+        e.updateGPA(3.7f);  FPQ.reposition(e);
+        System.out.println("after GPA updates...");
+        while (FPQ.size()>0) 
+           FPQ.poll()
+              .ifPresent( s -> System.out.println(s.name));
+    }
+
+===============================
+Using the HeapDisplay program.
+For small-enough heaps, you can see the result of your program by displaying
+the heap graphically.  See the main in my BinaryHeap.java program and the
+(commented-out) main in HeapDisplay.java to see how it's done.  This program
+can in fact display any initial portion of an array in the shape of a 
+complete binary tree: it's called on the underlying array and the size, which
+indicates how many initial values are to be considered to be in the tree.
+
+
+===============================
+Part II.
+
+For this part of the lab, you need to invent a new sorting
+algorithm for an array that runs in worst-case O(n*log n) time using
+a heap (BinHeap is enough).  Hint: if you call n dequeue() operations,
+you will get n values in decreasing order, and the time will be
+n*log(n) since each dequeue() takes log(n) time.  Make sure that your
+algorithm is polymorphic using the CompareTo interface (look at
+implementations of QuickSort, MergeSort for hints.)
+
+CHALLENGE: The easy way to implement heapsort is to insert every value
+into a new heap, then delete (poll) the values and store them back into the
+original array in sorted order.  But this will require O(n) extra memory
+(array + heap).  Ideally your "heapsort" algorithm should only need O(1)
+extra memory: try to use the array itself as the heap array.  This
+will give you a sorting algorithm that, at least theoretically, have
+the advantages of mergesort, which is worst-case n*log(n), as well as
+quicksort, which doesn't require more than O(1) extra memory.
+
+Your heapsort program should be encapsulated in a class of its own.
+
+
+===============================
+Part III.
+
+a. Inside the BinaryHeap program I wrote you will find another important
+procedure, "heapify", that converts any array of values into a heap.  
+In comments it's argued that this operation is worst-case O(n).
+You can create an approximate worst case scenario for heapify this way:
+
+create an array with values in increasing order: 1 2 3 4 5 ...
+
+With a max heap, calling heapify on this array will always swap a value 
+down several levels in order to move the larger values upwards.
+
+Devise a series of timing experiments to show that heapify is indeed 
+O(n).  To take accurate timing samples:
+
+long time1 = System.currentTimeMillis();
+... call heapify, avoid I/O
+long time2 = System.currentTimeMillis();
+System.out.println("elapsed time in approx. milliseconds: "+(time2-time1));
+
+Create a chart showing different values of n and times elpased.
+
+
+b.  It is also argued that the average-case (and amortized) complexity of 
+inserting a value into the heap is O(1) because of the convergent series
+
+  infinity
+   SIGMA     i/(2**i)  == 1
+  i = 1
+
+But this analysis is imperfect because there are not size/2 leaf nodes but
+(size+1)/2 leaf nodes.  This doesn't affect the conclusion of O(1), but
+it should affect the exact constant we get.  Modify the program so that
+the number of *swap* operations are recorded.  Run experiments by creating
+heaps of different sizes using insert (.add) and take the total number of
+swaps divided by size for each heap.  This number should be constant as
+the sizes of the heaps change.  Note that this time you're not measuring
+the time elapsed, but counting the number of swap operations that took place.
